@@ -4,12 +4,21 @@ import rl "vendor:raylib"
 import "core:log"
 import "core:fmt"
 import "core:c"
+import "core:strconv"
 
-font: rl.Font
+g_font: rl.Font
 run: bool
 texture: rl.Texture
 texture2: rl.Texture
 texture2_rot: f32
+
+g_dpi := f32(150)
+
+g_textbuf: [255]u8
+
+A4 :: [2]f32{297, 210}
+
+//rl.SetTextureFilter()
 
 init :: proc() {
 	run = true
@@ -25,11 +34,11 @@ init :: proc() {
 	codepointCount := i32(0)
 	codepoints := rl.LoadCodepoints(text, &codepointCount)
 	
-	font = rl.LoadFontEx("assets/NotoSansJP-Regular.ttf", 36, codepoints, codepointCount)
+	g_font = rl.LoadFontEx("assets/NotoSansJP-Regular.ttf", 36, codepoints, codepointCount)
 	rl.UnloadCodepoints(codepoints)
 
-	rl.GuiSetFont(font)
-	rl.GuiSetStyle(.DEFAULT, cast(i32)rl.GuiDefaultProperty.TEXT_SIZE, 16)
+	rl.GuiSetFont(g_font)
+	rl.GuiSetStyle(.DEFAULT, cast(i32)rl.GuiDefaultProperty.TEXT_SIZE, 36)
 
 	// A different way of loading a texture: using `read_entire_file` that works
 	// both on desktop and web. Note: You can import `core:os` and use
@@ -45,7 +54,12 @@ init :: proc() {
 
 update :: proc() {
 	rl.BeginDrawing()
-	rl.ClearBackground({0, 120, 153, 255})
+	rl.ClearBackground({120, 120, 153, 255})
+
+	canvas := rl.Rectangle{0, 0, mm_to_px(A4.x, g_dpi),  mm_to_px(A4.y, g_dpi)}
+	rl.DrawRectangleRec(canvas, {230, 230, 230, 255})
+
+
 	{
 		texture2_rot += rl.GetFrameTime()*50
 		source_rect := rl.Rectangle {
@@ -58,7 +72,11 @@ update :: proc() {
 		}
 		rl.DrawTexturePro(texture2, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
 	}
-	rl.DrawTextureEx(texture, rl.GetMousePosition(), 0, 5, rl.WHITE)
+
+
+
+
+	//rl.DrawTextureEx(texture, rl.GetMousePosition(), 0, 5, rl.WHITE)
 
 	{	
 		w := rl.GetScreenWidth()
@@ -66,28 +84,75 @@ update :: proc() {
 
 		rl.DrawRectangleLines(w/2, h/2, 200, 200, {128, 255, 128, 255})
 
+		
+
 	}
 
 
 
+	{
+		@static slider_val: f32 = 0
 
+		BUTTON_SIZE :: [2]f32{350, 35}
+		
+		start_pos := [2]f32{0, 0}
+		pad       := [2]f32{10, 10} 
+		pad += start_pos
+		pad_size  := [2]f32{0, 10}
 
+		buttons: f32 = 7
 
+		rect_pad := [2]f32{15, 15}
 
-	rl.DrawRectangleRec({0, 0, 220, 130}, rl.BLACK)
-	rl.GuiLabel({10, 10, 200, 20}, "raygui works!")
+		rl.DrawRectangleRec({
+			pad.x - rect_pad.x,
+			pad.y - rect_pad.y,
+			BUTTON_SIZE.x + 2*rect_pad.x,
+			BUTTON_SIZE.y * buttons + pad_size.y * (buttons - 1) + 2*rect_pad.y},
+			rl.BLACK,
+		)
 
-	if rl.GuiButton({10, 30, 200, 20}, "Print to log (see console)") {
-		log.info("log.info works!")
-		fmt.println("fmt.println too.")
-	}
+		rl.GuiLabelButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "raygui works!")
 
-	if rl.GuiButton({10, 60, 200, 20}, "Source code (opens GitHub)") {
-		rl.OpenURL("https://github.com/karl-zylinski/odin-raylib-web")
-	}
+		pad.y += pad_size.y + BUTTON_SIZE.y
 
-	if rl.GuiButton({10, 90, 200, 20}, "JP TEXT: こんにちは、世界！") {
-		run = false
+		if rl.GuiButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "Print to log (see console)") {
+			log.info("log.info works!")
+			fmt.println("fmt.println too.")
+		}
+
+		pad.y += pad_size.y + BUTTON_SIZE.y
+
+		if rl.GuiSlider({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, {}, "test", &slider_val, 0, 100) != 0 {
+
+		}
+
+		pad.y += pad_size.y + BUTTON_SIZE.y
+
+		if rl.GuiTextBox({pad.x, pad.y,BUTTON_SIZE.x, BUTTON_SIZE.y}, cstring(&g_textbuf[0]), 36, true) {
+
+		}
+
+		pad.y += pad_size.y + BUTTON_SIZE.y
+
+		if rl.GuiButton({pad.x, pad.y,BUTTON_SIZE.x, BUTTON_SIZE.y}, "JP: こんにちは、世界！") {
+			run = false
+		}
+
+		pad.y += pad_size.y + BUTTON_SIZE.y
+
+		rl.GuiLabel(
+			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
+		)
+
+		pad.y += pad_size.y + BUTTON_SIZE.y
+
+		rl.GuiLabel(
+			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			fmt.ctprintf("%.2f", slider_val)
+		)
+
 	}
 
 	rl.EndDrawing()
@@ -104,7 +169,7 @@ parent_window_size_changed :: proc(w, h: int) {
 
 shutdown :: proc() {
 
-	rl.UnloadFont(font)
+	rl.UnloadFont(g_font)
 
 	rl.CloseWindow()
 }
