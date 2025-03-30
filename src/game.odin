@@ -1,4 +1,4 @@
-package game
+package program
 
 import rl "vendor:raylib"
 import "core:log"
@@ -12,18 +12,24 @@ texture: rl.Texture
 texture2: rl.Texture
 texture2_rot: f32
 
-g_dpi := f32(150)
+g_zoom := f32(1)
+g_dpi  := f32(150)
 
 g_textbuf: [255]u8
 
-A4 :: [2]f32{297, 210}
+DEFAULT_RES   :: [2]i32{1920, 1080}
+
+A4            :: [2]f32{297, 210}
+A4_FRAME      :: [2]f32{260, 146.25}
+A4_ANCH_POS   :: [2]f32{A4.x/2, A4.y*11/20}
+
 
 //rl.SetTextureFilter()
 
 init :: proc() {
 	run = true
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
-	rl.InitWindow(1280, 720, "Odin + Raylib on the web")
+	rl.InitWindow(expand_values(DEFAULT_RES), "Odin + Raylib on the web")
 
 	// Anything in `assets` folder is available to load.
 	texture = rl.LoadTexture("assets/round_cat.png")
@@ -56,8 +62,18 @@ update :: proc() {
 	rl.BeginDrawing()
 	rl.ClearBackground({120, 120, 153, 255})
 
-	canvas := rl.Rectangle{0, 0, mm_to_px(A4.x, g_dpi),  mm_to_px(A4.y, g_dpi)}
-	rl.DrawRectangleRec(canvas, {230, 230, 230, 255})
+	// PAPER
+	paper := rl.Rectangle{0, 0, mm_to_px(A4.x, g_dpi),  mm_to_px(A4.y, g_dpi)}
+	rl.DrawRectangleRec(paper, {230, 230, 230, 255})
+
+	A4_pos := A4_ANCH_POS - A4_FRAME/2
+	paper_frame := rl.Rectangle{
+		mm_to_px(A4_pos.x, g_dpi),
+		mm_to_px(A4_pos.y, g_dpi),
+		mm_to_px(A4_FRAME.x, g_dpi),
+		mm_to_px(A4_FRAME.y, g_dpi),
+	}
+	rl.DrawRectangleLinesEx(paper_frame, 2, {0, 0, 0, 255})
 
 
 	{
@@ -67,10 +83,23 @@ update :: proc() {
 			f32(texture2.width), f32(texture2.height),
 		}
 		dest_rect := rl.Rectangle {
-			300, 220,
+			500, 500,
 			f32(texture2.width)*5, f32(texture2.height)*5,
 		}
 		rl.DrawTexturePro(texture2, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
+	}
+
+	{
+		//texture2_rot += rl.GetFrameTime()*50
+		source_rect := rl.Rectangle {
+			0, 0,
+			f32(texture.width), f32(texture.height),
+		}
+		dest_rect := rl.Rectangle {
+			500, 700,
+			f32(texture.width)*5, f32(texture.height)*5,
+		}
+		rl.DrawTexturePro(texture, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
 	}
 
 
@@ -82,7 +111,7 @@ update :: proc() {
 		w := rl.GetScreenWidth()
 		h := rl.GetScreenHeight()
 
-		rl.DrawRectangleLines(w/2, h/2, 200, 200, {128, 255, 128, 255})
+		rl.DrawRectangle(w/2, h/2, 200, 200, {0, 255, 0, 255})
 
 		
 
@@ -100,7 +129,7 @@ update :: proc() {
 		pad += start_pos
 		pad_size  := [2]f32{0, 10}
 
-		buttons: f32 = 7
+		buttons: f32 = 8
 
 		rect_pad := [2]f32{15, 15}
 
@@ -151,6 +180,13 @@ update :: proc() {
 		rl.GuiLabel(
 			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
 			fmt.ctprintf("%.2f", slider_val)
+		)
+
+		pad.y += pad_size.y + BUTTON_SIZE.y
+
+		rl.GuiLabel(
+			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			fmt.ctprintf("ZOOM: %.2f %%", g_zoom*100)
 		)
 
 	}
