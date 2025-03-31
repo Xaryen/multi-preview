@@ -46,8 +46,8 @@ Box :: struct {
 
 
 Language :: enum {
-	JP,
 	ENG,
+	JP,
 }
 
 ADD_BOX_STR := [Language]cstring{
@@ -319,7 +319,6 @@ update :: proc() {
 		g_active_box = .None
 	}
 
-	// Anything allocated using temp allocator is invalid after this.
 	free_all(context.temp_allocator)
 }
 
