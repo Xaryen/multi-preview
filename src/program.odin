@@ -6,16 +6,22 @@ import "core:fmt"
 import "core:c"
 import "core:strconv"
 
+import emc "emc_web"
+
 g_font: rl.Font
 run: bool
 texture: rl.Texture
 texture2: rl.Texture
 texture2_rot: f32
 
-g_zoom := f32(1)
+g_zoom_mod := f32(1)
 g_dpi  := f32(150)
+g_magnification := g_dpi * g_zoom_mod
 
 g_textbuf: [255]u8
+g_dpi_field := i32(g_dpi)
+
+
 
 DEFAULT_RES   :: [2]i32{1920, 1080}
 
@@ -23,13 +29,20 @@ A4            :: [2]f32{297, 210}
 A4_FRAME      :: [2]f32{260, 146.25}
 A4_ANCH_POS   :: [2]f32{A4.x/2, A4.y*11/20}
 
+Active_Input_Box :: enum {
+	None,
+	Test,
+	Dpi,
+}
+
+active_box := Active_Input_Box{}
 
 //rl.SetTextureFilter()
 
 init :: proc() {
 	run = true
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
-	rl.InitWindow(expand_values(DEFAULT_RES), "Odin + Raylib on the web")
+	rl.InitWindow(expand_values(DEFAULT_RES), "Multiplane Previewer")
 
 	// Anything in `assets` folder is available to load.
 	texture = rl.LoadTexture("assets/round_cat.png")
@@ -56,22 +69,25 @@ init :: proc() {
 		texture2 = rl.LoadTextureFromImage(long_cat_img)
 		rl.UnloadImage(long_cat_img)
 	}
+
 }
 
 update :: proc() {
+	g_magnification = g_dpi * g_zoom_mod
+
 	rl.BeginDrawing()
 	rl.ClearBackground({120, 120, 153, 255})
 
 	// PAPER
-	paper := rl.Rectangle{0, 0, mm_to_px(A4.x, g_dpi),  mm_to_px(A4.y, g_dpi)}
+	paper := rl.Rectangle{0, 0, mm_to_px(A4.x, g_magnification),  mm_to_px(A4.y, g_magnification)}
 	rl.DrawRectangleRec(paper, {230, 230, 230, 255})
 
 	A4_pos := A4_ANCH_POS - A4_FRAME/2
 	paper_frame := rl.Rectangle{
-		mm_to_px(A4_pos.x, g_dpi),
-		mm_to_px(A4_pos.y, g_dpi),
-		mm_to_px(A4_FRAME.x, g_dpi),
-		mm_to_px(A4_FRAME.y, g_dpi),
+		mm_to_px(A4_pos.x, g_magnification),
+		mm_to_px(A4_pos.y, g_magnification),
+		mm_to_px(A4_FRAME.x, g_magnification),
+		mm_to_px(A4_FRAME.y, g_magnification),
 	}
 	rl.DrawRectangleLinesEx(paper_frame, 2, {0, 0, 0, 255})
 
@@ -111,7 +127,7 @@ update :: proc() {
 		w := rl.GetScreenWidth()
 		h := rl.GetScreenHeight()
 
-		rl.DrawRectangle(w/2, h/2, 200, 200, {0, 255, 0, 255})
+		rl.DrawRectangle(w/2, h/2, 200, 200, {35, 35, 35, 255})
 
 		
 
@@ -123,15 +139,16 @@ update :: proc() {
 		@static slider_val: f32 = 0
 
 		BUTTON_SIZE :: [2]f32{350, 35}
-		
-		start_pos := [2]f32{0, 0}
+
+		rect_pad := [2]f32{15, 15}
+		start_pos := [2]f32{f32(rl.GetScreenWidth()) - BUTTON_SIZE.x - 2*rect_pad.x, 0}
 		pad       := [2]f32{10, 10} 
 		pad += start_pos
+
 		pad_size  := [2]f32{0, 10}
 
 		buttons: f32 = 8
 
-		rect_pad := [2]f32{15, 15}
 
 		rl.DrawRectangleRec({
 			pad.x - rect_pad.x,
@@ -141,13 +158,13 @@ update :: proc() {
 			rl.BLACK,
 		)
 
-		rl.GuiLabelButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "raygui works!")
+		rl.GuiLabelButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "密着マルチプレビューア")
 
 		pad.y += pad_size.y + BUTTON_SIZE.y
 
-		if rl.GuiButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "Print to log (see console)") {
-			log.info("log.info works!")
-			fmt.println("fmt.println too.")
+		if rl.GuiButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "こんにちは、世界！") {
+			log.info("logging test")
+			fmt.println("fmt printing test")
 		}
 
 		pad.y += pad_size.y + BUTTON_SIZE.y
@@ -158,14 +175,23 @@ update :: proc() {
 
 		pad.y += pad_size.y + BUTTON_SIZE.y
 
-		if rl.GuiTextBox({pad.x, pad.y,BUTTON_SIZE.x, BUTTON_SIZE.y}, cstring(&g_textbuf[0]), 36, true) {
+		test_box_rect := rl.Rectangle{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}
+		if rl.CheckCollisionPointRec(rl.GetMousePosition(), test_box_rect) && rl.IsMouseButtonDown(.LEFT) {
+			active_box = .Test
+		}
+		if rl.GuiTextBox(test_box_rect, cstring(&g_textbuf[0]), 36, active_box == .Test) {
 
 		}
 
 		pad.y += pad_size.y + BUTTON_SIZE.y
 
-		if rl.GuiButton({pad.x, pad.y,BUTTON_SIZE.x, BUTTON_SIZE.y}, "JP: こんにちは、世界！") {
-			run = false
+		dpi_field_rect := rl.Rectangle{pad.x, pad.y,BUTTON_SIZE.x, BUTTON_SIZE.y}
+		if rl.CheckCollisionPointRec(rl.GetMousePosition(), dpi_field_rect) && rl.IsMouseButtonDown(.LEFT) {
+			active_box = .Dpi
+		}
+		if rl.GuiValueBox(dpi_field_rect, {},  &g_dpi_field, 1, 1000, active_box == .Dpi) != 0 {
+			//run = false
+			g_dpi = f32(g_dpi_field)
 		}
 
 		pad.y += pad_size.y + BUTTON_SIZE.y
@@ -179,19 +205,32 @@ update :: proc() {
 
 		rl.GuiLabel(
 			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
-			fmt.ctprintf("%.2f", slider_val)
+			//fmt.ctprintf("%.2f", slider_val),
+			fmt.ctprintf("%t", rl.IsKeyDown(.LEFT_CONTROL))
 		)
 
 		pad.y += pad_size.y + BUTTON_SIZE.y
 
 		rl.GuiLabel(
 			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
-			fmt.ctprintf("ZOOM: %.2f %%", g_zoom*100)
+			fmt.ctprintf("ZOOM: %.2f %%", g_zoom_mod*100)
 		)
 
 	}
 
 	rl.EndDrawing()
+
+	mouse_delta := emc.get_mousewheel_delta()
+
+	if rl.IsKeyDown(.LEFT_CONTROL) && (mouse_delta != 0) {
+		log.debugf("%.2f", mouse_delta)
+		wheel_zoom := mouse_delta * 0.1
+		g_zoom_mod += wheel_zoom
+	}
+
+	if rl.IsKeyDown(.ENTER) {
+		active_box = .None
+	}
 
 	// Anything allocated using temp allocator is invalid after this.
 	free_all(context.temp_allocator)
