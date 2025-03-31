@@ -30,6 +30,8 @@ g_dpi_field := i32(g_dpi)
 g_boxes := Boxes{}
 g_box_size := px_to_mm(DEFAULT_BOX_SIZE, g_real_dpi)
 
+g_24fps_time := f64(0)
+FRAMETIME_24FPS :: f64(1/24)
 
 g_lang := Language(.ENG)
 
@@ -115,6 +117,13 @@ init :: proc() {
 update :: proc() {
 	g_real_dpi = g_dpi * g_zoom_mod
 
+	time := rl.GetTime()
+	next_24fps_frame := false
+	if time > g_24fps_time + FRAMETIME_24FPS {
+		g_24fps_time = time
+		next_24fps_frame = true
+	}
+
 	rl.BeginDrawing()
 	rl.ClearBackground({120, 120, 153, 255})
 
@@ -173,11 +182,12 @@ update :: proc() {
 		box_dim  := mm_to_px(g_box_size, g_real_dpi)
 		pad := box_dim + box_dim/5
 
-		//log.debug(rl.GetTime())
-
 		for i in 0..<g_boxes.num {
 			box := &g_boxes.arr[i]
-			_ = i
+
+			if next_24fps_frame {
+				box.time += 1
+			}
 
 			pos_x := mm_to_px(box.velocity * box.time, g_real_dpi) + start_pos.x
 		
@@ -187,7 +197,7 @@ update :: proc() {
 				{35, 35, 35, 255},
 			)
 
-			box.time    += 1
+
 
 			start_pos.y += pad
 
