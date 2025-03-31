@@ -12,3 +12,7 @@ _read_entire_file :: proc(name: string, allocator := context.allocator, loc := #
 _write_entire_file :: proc(name: string, data: []byte, truncate := true) -> (success: bool) {
 	return os.write_entire_file(name, data, truncate)
 }
+
+_emc_get_mousewheel_delta :: proc() -> f32 {
+	return 0 //use raylib function instead
+};

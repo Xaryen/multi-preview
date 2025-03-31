@@ -6,8 +6,6 @@ import "core:fmt"
 import "core:c"
 import "core:strconv"
 
-import emc "emc_web"
-
 g_font: rl.Font
 run: bool
 texture: rl.Texture
@@ -220,12 +218,19 @@ update :: proc() {
 
 	rl.EndDrawing()
 
-	mouse_delta := emc.get_mousewheel_delta()
+	mouse_delta: f32
 
+	when ODIN_OS == .JS {
+		mouse_delta = emc_get_mousewheel_delta()
+	} else {
+		mouse_delta = rl.GetMouseWheelMove()
+	}
+	
+	
 	if rl.IsKeyDown(.LEFT_CONTROL) && (mouse_delta != 0) {
-		log.debugf("%.2f", mouse_delta)
 		wheel_zoom := mouse_delta * 0.1
 		g_zoom_mod += wheel_zoom
+		log.debugf("%.2f", mouse_delta)
 	}
 
 	if rl.IsKeyDown(.ENTER) {

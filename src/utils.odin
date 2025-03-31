@@ -11,6 +11,10 @@ write_entire_file :: proc(name: string, data: []byte, truncate := true) -> (succ
 	return _write_entire_file(name, data, truncate)
 }
 
+emc_get_mousewheel_delta :: proc() -> f32 {
+	return _emc_get_mousewheel_delta()
+}
+
 INCHES_PER_METER :: 1000/25.4
 
 mm_to_inches :: #force_inline proc(mm: f32) -> (inc: f32) {

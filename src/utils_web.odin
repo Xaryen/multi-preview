@@ -107,3 +107,12 @@ _write_entire_file :: proc(name: string, data: []byte, truncate := true) -> (suc
 	log.debugf("File written successfully: %v", name)
 	return true
 }
+
+@(default_calling_convention = "c")
+foreign {
+	emscripten_run_script_int :: proc(script: cstring) -> i32 ---
+}
+
+_emc_get_mousewheel_delta :: #force_inline proc() -> f32 {
+	return f32(emscripten_run_script_int("getWheelDelta()"))
+};
