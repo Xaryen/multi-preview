@@ -17,6 +17,7 @@ A4_ANCH_POS      :: [2]f32{A4.x/2, A4.y*11/20}
 
 g_font: rl.Font
 g_run: bool
+g_paused: bool
 //texture: rl.Texture
 //texture2: rl.Texture
 //texture2_rot: f32
@@ -31,18 +32,17 @@ g_boxes := Boxes{}
 g_box_size := px_to_mm(DEFAULT_BOX_SIZE, g_real_dpi)
 
 g_24fps_time := f64(0)
-FRAMETIME_24FPS :: f64(1/24)
+FRAMETIME_24FPS :: f64(1.0/24)
 
 g_lang := Language(.ENG)
 
 Boxes :: struct {
-	arr:  [32]Box,
+	arr:  #soa[32]Box,
 	bufs: [32][255]byte,
 	num:  i32,
 }
 
 Box :: struct {
-	position: f32, //1D because it only moves forward
 	velocity: f32, // "mm per k" (24fps frame)
 	time:     f32,
 }
@@ -66,6 +66,21 @@ CHANGE_LANG_STR := [Language]cstring{
 TITLE_STR := [Language]cstring{
 	.ENG = "Multiplane Previewer",
 	.JP = "密着マルチプレビューア"
+}
+
+BOX_SIZE_STR := [Language]cstring{
+	.ENG = "Box Size",
+	.JP = "ボックスサイズ"
+}
+
+PAUSE_STR := [Language]cstring{
+	.ENG = "Pause",
+	.JP = "一時停止"
+}
+
+RESET_STR := [Language]cstring{
+	.ENG = "Reset",
+	.JP = "リセット"
 }
 
 
@@ -119,9 +134,16 @@ update :: proc() {
 
 	time := rl.GetTime()
 	next_24fps_frame := false
-	if time > g_24fps_time + FRAMETIME_24FPS {
+
+	log.debug(FRAMETIME_24FPS)
+
+	if time > (g_24fps_time + FRAMETIME_24FPS) {
 		g_24fps_time = time
 		next_24fps_frame = true
+	}
+
+	if g_paused {
+		next_24fps_frame = false
 	}
 
 	rl.BeginDrawing()
@@ -139,36 +161,6 @@ update :: proc() {
 		mm_to_px(A4_FRAME.y, g_real_dpi),
 	}
 	rl.DrawRectangleLinesEx(paper_frame, 2, {0, 0, 0, 255})
-
-
-	//{
-	//	texture2_rot += rl.GetFrameTime()*50
-	//	source_rect := rl.Rectangle {
-	//		0, 0,
-	//		f32(texture2.width), f32(texture2.height),
-	//	}
-	//	dest_rect := rl.Rectangle {
-	//		500, 500,
-	//		f32(texture2.width)*5, f32(texture2.height)*5,
-	//	}
-	//	rl.DrawTexturePro(texture2, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
-	//}
-
-	//{
-	//	//texture2_rot += rl.GetFrameTime()*50
-	//	source_rect := rl.Rectangle {
-	//		0, 0,
-	//		f32(texture.width), f32(texture.height),
-	//	}
-	//	dest_rect := rl.Rectangle {
-	//		500, 700,
-	//		f32(texture.width)*5, f32(texture.height)*5,
-	//	}
-	//	rl.DrawTexturePro(texture, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
-	//}
-
-	//rl.DrawTextureEx(texture, rl.GetMousePosition(), 0, 5, rl.WHITE)
-
 
 
 	// DRAW BOXES
@@ -240,6 +232,7 @@ update :: proc() {
 
 
 		//ADD BOX
+
 		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, ADD_BOX_STR[g_lang]) {
 			
 			g_boxes.arr[g_boxes.num] = Box{
@@ -251,6 +244,8 @@ update :: proc() {
 
 		
 		//BOX SIZE
+		rl.GuiLabel({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, BOX_SIZE_STR[g_lang])
+		start_pos.y += pad.y + BUTTON_SIZE.y
 		if rl.GuiSlider({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, {}, {}, &g_box_size, 0, 200) != 0 {
 			//never seems to get hit? it doesn't return 1 even when changing
 		}
@@ -268,8 +263,9 @@ update :: proc() {
 			start_pos.y += pad.y + BUTTON_SIZE.y
 		}
 		
-
-
+		//DPI
+		rl.GuiLabel({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "DPI:")
+		start_pos.y += pad.y + BUTTON_SIZE.y
 		dpi_field_rect := rl.Rectangle{start_pos.x, start_pos.y,BUTTON_SIZE.x, BUTTON_SIZE.y}
 		if rl.CheckCollisionPointRec(rl.GetMousePosition(), dpi_field_rect) && rl.IsMouseButtonDown(.LEFT) {
 			g_active_box = .Dpi
@@ -278,15 +274,15 @@ update :: proc() {
 			//run = false
 			g_dpi = f32(g_dpi_field)
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		start_pos.y += pad.y + BUTTON_SIZE.y + 100
 
 
 		rl.GuiLabel(
-			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			{start_pos.x, start_pos.y, BUTTON_SIZE.x, 100},
 			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
-			fmt.ctprintf("%v, %v", g_box_size, mm_to_px(g_box_size, g_real_dpi)),
+			fmt.ctprintf("24fps: %v \n\n\n60fps: %v", g_24fps_time, time),
 		)
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		start_pos.y += pad.y + 100
 
 
 		if rl.GuiButton(
@@ -302,6 +298,16 @@ update :: proc() {
 			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
 			fmt.ctprintf("ZOOM: %.2f %%", g_zoom_mod*100)
 		)
+
+		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "PAUSE") {
+			g_paused = !g_paused
+		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
+
+		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "RESET") {
+			g_boxes.arr.time = 0
+		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
 
 	}
 
