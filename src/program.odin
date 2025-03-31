@@ -18,9 +18,6 @@ A4_ANCH_POS      :: [2]f32{A4.x/2, A4.y*11/20}
 g_font: rl.Font
 g_run: bool
 g_paused: bool
-//texture: rl.Texture
-//texture2: rl.Texture
-//texture2_rot: f32
 
 g_zoom_mod := f32(1)
 g_dpi      := f32(150)
@@ -69,21 +66,19 @@ TITLE_STR := [Language]cstring{
 }
 
 BOX_SIZE_STR := [Language]cstring{
-	.ENG = "Box Size",
+	.ENG = "Box Size:",
 	.JP = "ボックスサイズ"
 }
 
 PAUSE_STR := [Language]cstring{
-	.ENG = "Pause",
+	.ENG = "PAUSE",
 	.JP = "一時停止"
 }
 
 RESET_STR := [Language]cstring{
-	.ENG = "Reset",
+	.ENG = "RESET",
 	.JP = "リセット"
 }
-
-
 
 Active_Input_Box :: enum {
 	None,
@@ -101,9 +96,6 @@ init :: proc() {
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 	rl.InitWindow(expand_values(DEFAULT_RES), "Multiplane Previewer")
 
-	// Anything in `assets` folder is available to load.
-	//texture = rl.LoadTexture("assets/round_cat.png")
-
 	text := #load("codepoints.txt", cstring)
 
 	// Get codepoints from text
@@ -115,17 +107,6 @@ init :: proc() {
 
 	rl.GuiSetFont(g_font)
 	rl.GuiSetStyle(.DEFAULT, cast(i32)rl.GuiDefaultProperty.TEXT_SIZE, 36)
-
-	// A different way of loading a texture: using `read_entire_file` that works
-	// both on desktop and web. Note: You can import `core:os` and use
-	// `os.read_entire_file`. But that won't work on web. Emscripten has a way
-	// to bundle files into the build, and we access those using this
-	// special `read_entire_file`.
-	if long_cat_data, long_cat_ok := read_entire_file("assets/long_cat.png", context.temp_allocator); long_cat_ok {
-		long_cat_img := rl.LoadImageFromMemory(".png", raw_data(long_cat_data), c.int(len(long_cat_data)))
-		//texture2 = rl.LoadTextureFromImage(long_cat_img)
-		rl.UnloadImage(long_cat_img)
-	}
 
 }
 
@@ -230,9 +211,16 @@ update :: proc() {
 		rl.GuiLabelButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, TITLE_STR[g_lang])
 		start_pos.y += pad.y + BUTTON_SIZE.y
 
+		if rl.GuiButton(
+			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			CHANGE_LANG_STR[g_lang],
+		) {
+			g_lang = .JP if g_lang == .ENG else .ENG
+		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
+		
 
 		//ADD BOX
-
 		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, ADD_BOX_STR[g_lang]) {
 			
 			g_boxes.arr[g_boxes.num] = Box{
@@ -280,24 +268,21 @@ update :: proc() {
 		rl.GuiLabel(
 			{start_pos.x, start_pos.y, BUTTON_SIZE.x, 100},
 			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
-			fmt.ctprintf("24fps: %v \n\n60fps: %v", g_24fps_time, time),
+			fmt.ctprintf("24fps: %.4f \n\n60fps: %.4f", g_24fps_time, time),
 		)
 		start_pos.y += pad.y + 100
 
 
-		if rl.GuiButton(
-			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
-			CHANGE_LANG_STR[g_lang],
-		) {
-			g_lang = .JP if g_lang == .ENG else .ENG
-		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
-
-		
 		rl.GuiLabel(
 			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
 			fmt.ctprintf("ZOOM: %.2f %%", g_zoom_mod*100)
 		)
+		start_pos.y += pad.y + BUTTON_SIZE.y
+		rl.GuiLabel(
+			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			"(LCTRL + MOUSEWHEEL)",
+		)
+		start_pos.y += pad.y + BUTTON_SIZE.y
 		start_pos.y += pad.y + BUTTON_SIZE.y
 
 		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, PAUSE_STR[g_lang]) {
