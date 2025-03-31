@@ -17,12 +17,16 @@ emc_get_mousewheel_delta :: proc() -> f32 {
 
 INCHES_PER_METER :: 1000/25.4
 
-mm_to_inches :: #force_inline proc(mm: f32) -> (inc: f32) {
+mm_to_inches :: #force_inline proc(mm: f32) -> (inch: f32) {
 	return mm * INCHES_PER_METER / 1000
 }
 
-mm_to_inches_vec :: proc(mms: $T/[$N]$E) -> E {
-	for $mm in mms {
+inches_to_mm :: #force_inline proc(inch: f32) -> (mm: f32) {
+	return inch/INCHES_PER_METER * 1000
+}
+
+mm_to_inches_vec2 :: proc(mms: $T/[$N]$E) -> E {
+	for &mm in mms {
 		mm_to_inches(mm)
 	}
 	return mms
@@ -30,4 +34,12 @@ mm_to_inches_vec :: proc(mms: $T/[$N]$E) -> E {
 
 mm_to_px :: #force_inline proc(mm: f32, dpi: f32) -> (px: f32) {
 	return dpi * mm_to_inches(mm)
+}
+
+mm_to_px_int :: #force_inline proc(mm: f32, dpi: f32) -> (px: i32) {
+	return i32(dpi * mm_to_inches(mm))
+}
+
+px_to_mm :: #force_inline proc(px: f32, dpi: f32) -> (mm: f32) {
+	return inches_to_mm(px/dpi)
 }

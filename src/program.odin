@@ -6,44 +6,86 @@ import "core:fmt"
 import "core:c"
 import "core:strconv"
 
+_ :: log
+_ :: strconv
+
+DEFAULT_BOX_SIZE :: 100 //px
+DEFAULT_RES      :: [2]i32{1920, 1080}
+A4               :: [2]f32{297, 210}
+A4_FRAME         :: [2]f32{260, 146.25}
+A4_ANCH_POS      :: [2]f32{A4.x/2, A4.y*11/20}
+
 g_font: rl.Font
-run: bool
-texture: rl.Texture
-texture2: rl.Texture
-texture2_rot: f32
+g_run: bool
+//texture: rl.Texture
+//texture2: rl.Texture
+//texture2_rot: f32
 
 g_zoom_mod := f32(1)
-g_dpi  := f32(150)
-g_magnification := g_dpi * g_zoom_mod
+g_dpi      := f32(150)
+g_real_dpi := g_dpi * g_zoom_mod
 
-g_textbuf: [255]u8
 g_dpi_field := i32(g_dpi)
 
+g_boxes := Boxes{}
+g_box_size := px_to_mm(DEFAULT_BOX_SIZE, g_real_dpi)
 
 
-DEFAULT_RES   :: [2]i32{1920, 1080}
+g_lang := Language(.ENG)
 
-A4            :: [2]f32{297, 210}
-A4_FRAME      :: [2]f32{260, 146.25}
-A4_ANCH_POS   :: [2]f32{A4.x/2, A4.y*11/20}
+Boxes :: struct {
+	arr:  [32]Box,
+	bufs: [32][255]byte,
+	num:  i32,
+}
+
+Box :: struct {
+	position: f32, //1D because it only moves forward
+	velocity: f32, // "mm per k" (24fps frame)
+	time:     f32,
+}
+
+
+Language :: enum {
+	JP,
+	ENG,
+}
+
+ADD_BOX_STR := [Language]cstring{
+	.ENG = "Add Box",
+	.JP = "ボックス追加"
+}
+
+CHANGE_LANG_STR := [Language]cstring{
+	.ENG = "日本語",
+	.JP = "English"
+}
+
+TITLE_STR := [Language]cstring{
+	.ENG = "Multiplane Previewer",
+	.JP = "密着マルチプレビューア"
+}
+
+
 
 Active_Input_Box :: enum {
 	None,
-	Test,
 	Dpi,
+	Box1 = 8,
+	Box2, Box3, Box4, Box5, Box6, Box7, Box8, Box9, Box10, Box11, Box12, Box13, Box14, Box15, Box16,
 }
 
-active_box := Active_Input_Box{}
+g_active_box := Active_Input_Box{}
 
 //rl.SetTextureFilter()
 
 init :: proc() {
-	run = true
+	g_run = true
 	rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 	rl.InitWindow(expand_values(DEFAULT_RES), "Multiplane Previewer")
 
 	// Anything in `assets` folder is available to load.
-	texture = rl.LoadTexture("assets/round_cat.png")
+	//texture = rl.LoadTexture("assets/round_cat.png")
 
 	text := #load("codepoints.txt", cstring)
 
@@ -64,153 +106,190 @@ init :: proc() {
 	// special `read_entire_file`.
 	if long_cat_data, long_cat_ok := read_entire_file("assets/long_cat.png", context.temp_allocator); long_cat_ok {
 		long_cat_img := rl.LoadImageFromMemory(".png", raw_data(long_cat_data), c.int(len(long_cat_data)))
-		texture2 = rl.LoadTextureFromImage(long_cat_img)
+		//texture2 = rl.LoadTextureFromImage(long_cat_img)
 		rl.UnloadImage(long_cat_img)
 	}
 
 }
 
 update :: proc() {
-	g_magnification = g_dpi * g_zoom_mod
+	g_real_dpi = g_dpi * g_zoom_mod
 
 	rl.BeginDrawing()
 	rl.ClearBackground({120, 120, 153, 255})
 
 	// PAPER
-	paper := rl.Rectangle{0, 0, mm_to_px(A4.x, g_magnification),  mm_to_px(A4.y, g_magnification)}
+	paper := rl.Rectangle{0, 0, mm_to_px(A4.x, g_real_dpi),  mm_to_px(A4.y, g_real_dpi)}
 	rl.DrawRectangleRec(paper, {230, 230, 230, 255})
 
 	A4_pos := A4_ANCH_POS - A4_FRAME/2
 	paper_frame := rl.Rectangle{
-		mm_to_px(A4_pos.x, g_magnification),
-		mm_to_px(A4_pos.y, g_magnification),
-		mm_to_px(A4_FRAME.x, g_magnification),
-		mm_to_px(A4_FRAME.y, g_magnification),
+		mm_to_px(A4_pos.x, g_real_dpi),
+		mm_to_px(A4_pos.y, g_real_dpi),
+		mm_to_px(A4_FRAME.x, g_real_dpi),
+		mm_to_px(A4_FRAME.y, g_real_dpi),
 	}
 	rl.DrawRectangleLinesEx(paper_frame, 2, {0, 0, 0, 255})
 
 
-	{
-		texture2_rot += rl.GetFrameTime()*50
-		source_rect := rl.Rectangle {
-			0, 0,
-			f32(texture2.width), f32(texture2.height),
-		}
-		dest_rect := rl.Rectangle {
-			500, 500,
-			f32(texture2.width)*5, f32(texture2.height)*5,
-		}
-		rl.DrawTexturePro(texture2, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
-	}
+	//{
+	//	texture2_rot += rl.GetFrameTime()*50
+	//	source_rect := rl.Rectangle {
+	//		0, 0,
+	//		f32(texture2.width), f32(texture2.height),
+	//	}
+	//	dest_rect := rl.Rectangle {
+	//		500, 500,
+	//		f32(texture2.width)*5, f32(texture2.height)*5,
+	//	}
+	//	rl.DrawTexturePro(texture2, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
+	//}
 
-	{
-		//texture2_rot += rl.GetFrameTime()*50
-		source_rect := rl.Rectangle {
-			0, 0,
-			f32(texture.width), f32(texture.height),
-		}
-		dest_rect := rl.Rectangle {
-			500, 700,
-			f32(texture.width)*5, f32(texture.height)*5,
-		}
-		rl.DrawTexturePro(texture, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
-	}
-
-
-
+	//{
+	//	//texture2_rot += rl.GetFrameTime()*50
+	//	source_rect := rl.Rectangle {
+	//		0, 0,
+	//		f32(texture.width), f32(texture.height),
+	//	}
+	//	dest_rect := rl.Rectangle {
+	//		500, 700,
+	//		f32(texture.width)*5, f32(texture.height)*5,
+	//	}
+	//	rl.DrawTexturePro(texture, source_rect, dest_rect, {dest_rect.width/2, dest_rect.height/2}, texture2_rot, rl.WHITE)
+	//}
 
 	//rl.DrawTextureEx(texture, rl.GetMousePosition(), 0, 5, rl.WHITE)
 
-	{	
-		w := rl.GetScreenWidth()
-		h := rl.GetScreenHeight()
 
-		rl.DrawRectangle(w/2, h/2, 200, 200, {35, 35, 35, 255})
+
+	// DRAW BOXES
+	{	
+		//w := rl.GetScreenWidth()
+		//h := rl.GetScreenHeight()
+
+		start_pos := [2]f32{}
+
+		start_pos = mm_to_px(30, g_real_dpi)
+		box_dim  := mm_to_px(g_box_size, g_real_dpi)
+		pad := box_dim + box_dim/5
+
+		//log.debug(rl.GetTime())
+
+		for i in 0..<g_boxes.num {
+			box := &g_boxes.arr[i]
+			_ = i
+
+			pos_x := mm_to_px(box.velocity * box.time, g_real_dpi) + start_pos.x
+		
+			rl.DrawRectangleV(
+				{pos_x,  start_pos.y},
+				{box_dim, box_dim},
+				{35, 35, 35, 255},
+			)
+
+			box.time    += 1
+
+			start_pos.y += pad
+
+			if pos_x > f32(rl.GetScreenWidth()) {
+				box.time = 0
+			}
+
+		}
 
 		
 
 	}
 
 
-
+	//GUI
 	{
-		@static slider_val: f32 = 0
 
 		BUTTON_SIZE :: [2]f32{350, 35}
 
-		rect_pad := [2]f32{15, 15}
+		// crappy adhoc autolayout
+		rect_pad  := [2]f32{15, 15}
 		start_pos := [2]f32{f32(rl.GetScreenWidth()) - BUTTON_SIZE.x - 2*rect_pad.x, 0}
-		pad       := [2]f32{10, 10} 
-		pad += start_pos
+		pad_start := [2]f32{10, 10} 
+		pad  := [2]f32{0, 10}
+		start_pos += pad_start
 
-		pad_size  := [2]f32{0, 10}
-
-		buttons: f32 = 8
 
 
 		rl.DrawRectangleRec({
-			pad.x - rect_pad.x,
-			pad.y - rect_pad.y,
+			start_pos.x - rect_pad.x,
+			start_pos.y - rect_pad.y,
 			BUTTON_SIZE.x + 2*rect_pad.x,
-			BUTTON_SIZE.y * buttons + pad_size.y * (buttons - 1) + 2*rect_pad.y},
+			f32(rl.GetScreenHeight())},
 			rl.BLACK,
 		)
 
-		rl.GuiLabelButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "密着マルチプレビューア")
+		//TITLE
+		rl.GuiLabelButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, TITLE_STR[g_lang])
+		start_pos.y += pad.y + BUTTON_SIZE.y
 
-		pad.y += pad_size.y + BUTTON_SIZE.y
 
-		if rl.GuiButton({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "こんにちは、世界！") {
-			log.info("logging test")
-			fmt.println("fmt printing test")
+		//ADD BOX
+		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, ADD_BOX_STR[g_lang]) {
+			
+			g_boxes.arr[g_boxes.num] = Box{
+			}
+
+			g_boxes.num += 1
 		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
 
-		pad.y += pad_size.y + BUTTON_SIZE.y
-
-		if rl.GuiSlider({pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, {}, "test", &slider_val, 0, 100) != 0 {
-
+		
+		//BOX SIZE
+		if rl.GuiSlider({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, {}, {}, &g_box_size, 0, 200) != 0 {
+			//never seems to get hit? it doesn't return 1 even when changing
 		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
 
-		pad.y += pad_size.y + BUTTON_SIZE.y
-
-		test_box_rect := rl.Rectangle{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y}
-		if rl.CheckCollisionPointRec(rl.GetMousePosition(), test_box_rect) && rl.IsMouseButtonDown(.LEFT) {
-			active_box = .Test
+		for i in 0..<g_boxes.num {
+			box := &g_boxes.arr[i]
+			curr_box_rect := rl.Rectangle{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}
+			if rl.CheckCollisionPointRec(rl.GetMousePosition(), curr_box_rect) && rl.IsMouseButtonDown(.LEFT) {
+				g_active_box = Active_Input_Box(8+i)
+			}
+			if rl.GuiTextBox(curr_box_rect, cstring(&g_boxes.bufs[i][0]), 36, g_active_box == Active_Input_Box(8+i)) {
+				box.velocity, _ = strconv.parse_f32(string(g_boxes.bufs[i][:]))
+			}
+			start_pos.y += pad.y + BUTTON_SIZE.y
 		}
-		if rl.GuiTextBox(test_box_rect, cstring(&g_textbuf[0]), 36, active_box == .Test) {
+		
 
-		}
 
-		pad.y += pad_size.y + BUTTON_SIZE.y
-
-		dpi_field_rect := rl.Rectangle{pad.x, pad.y,BUTTON_SIZE.x, BUTTON_SIZE.y}
+		dpi_field_rect := rl.Rectangle{start_pos.x, start_pos.y,BUTTON_SIZE.x, BUTTON_SIZE.y}
 		if rl.CheckCollisionPointRec(rl.GetMousePosition(), dpi_field_rect) && rl.IsMouseButtonDown(.LEFT) {
-			active_box = .Dpi
+			g_active_box = .Dpi
 		}
-		if rl.GuiValueBox(dpi_field_rect, {},  &g_dpi_field, 1, 1000, active_box == .Dpi) != 0 {
+		if rl.GuiValueBox(dpi_field_rect, {},  &g_dpi_field, 1, 1000, g_active_box == .Dpi) != 0 {
 			//run = false
 			g_dpi = f32(g_dpi_field)
 		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
 
-		pad.y += pad_size.y + BUTTON_SIZE.y
 
 		rl.GuiLabel(
-			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
-			fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
+			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
+			fmt.ctprintf("%v, %v", g_box_size, mm_to_px(g_box_size, g_real_dpi)),
 		)
+		start_pos.y += pad.y + BUTTON_SIZE.y
 
-		pad.y += pad_size.y + BUTTON_SIZE.y
 
+		if rl.GuiButton(
+			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			CHANGE_LANG_STR[g_lang],
+		) {
+			g_lang = .JP if g_lang == .ENG else .ENG
+		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
+
+		
 		rl.GuiLabel(
-			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
-			//fmt.ctprintf("%.2f", slider_val),
-			fmt.ctprintf("%t", rl.IsKeyDown(.LEFT_CONTROL))
-		)
-
-		pad.y += pad_size.y + BUTTON_SIZE.y
-
-		rl.GuiLabel(
-			{pad.x, pad.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
 			fmt.ctprintf("ZOOM: %.2f %%", g_zoom_mod*100)
 		)
 
@@ -230,11 +309,10 @@ update :: proc() {
 	if rl.IsKeyDown(.LEFT_CONTROL) && (mouse_delta != 0) {
 		wheel_zoom := mouse_delta * 0.1
 		g_zoom_mod += wheel_zoom
-		log.debugf("%.2f", mouse_delta)
 	}
 
 	if rl.IsKeyDown(.ENTER) {
-		active_box = .None
+		g_active_box = .None
 	}
 
 	// Anything allocated using temp allocator is invalid after this.
@@ -258,9 +336,9 @@ should_run :: proc() -> bool {
 	when ODIN_OS != .JS {
 		// Never run this proc in browser. It contains a 16 ms sleep on web!
 		if rl.WindowShouldClose() {
-			run = false
+			g_run = false
 		}
 	}
 
-	return run
+	return g_run
 }
