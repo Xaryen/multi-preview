@@ -149,6 +149,8 @@ update :: proc() {
 		//w := rl.GetScreenWidth()
 		//h := rl.GetScreenHeight()
 
+		//TODO: Antialsing/texture filtering
+
 		start_pos := [2]f32{}
 
 		start_pos = mm_to_px(30, g_real_dpi)
