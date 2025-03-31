@@ -280,7 +280,7 @@ update :: proc() {
 		rl.GuiLabel(
 			{start_pos.x, start_pos.y, BUTTON_SIZE.x, 100},
 			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
-			fmt.ctprintf("24fps: %v \n\n\n60fps: %v", g_24fps_time, time),
+			fmt.ctprintf("24fps: %v \n\n60fps: %v", g_24fps_time, time),
 		)
 		start_pos.y += pad.y + 100
 
@@ -298,13 +298,14 @@ update :: proc() {
 			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
 			fmt.ctprintf("ZOOM: %.2f %%", g_zoom_mod*100)
 		)
+		start_pos.y += pad.y + BUTTON_SIZE.y
 
-		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "PAUSE") {
+		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, PAUSE_STR[g_lang]) {
 			g_paused = !g_paused
 		}
 		start_pos.y += pad.y + BUTTON_SIZE.y
 
-		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "RESET") {
+		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, RESET_STR[g_lang]) {
 			g_boxes.arr.time = 0
 		}
 		start_pos.y += pad.y + BUTTON_SIZE.y
