@@ -55,6 +55,11 @@ ADD_BOX_STR := [Language]cstring{
 	.JP = "ボックス追加"
 }
 
+REM_BOX_STR := [Language]cstring{
+	.ENG = "Remove Box",
+	.JP = "ボックス削除"
+}
+
 CHANGE_LANG_STR := [Language]cstring{
 	.ENG = "日本語",
 	.JP = "English"
@@ -225,10 +230,19 @@ update :: proc() {
 		//ADD BOX
 		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, ADD_BOX_STR[g_lang]) {
 			
+			g_boxes.arr[g_boxes.num].time = 0 
+
+			g_boxes.num += 1
+		}
+		start_pos.y += pad.y + BUTTON_SIZE.y
+
+		//REMOVE BOX
+		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, REM_BOX_STR[g_lang]) {
+			
 			g_boxes.arr[g_boxes.num] = Box{
 			}
 
-			g_boxes.num += 1
+			g_boxes.num -= 1
 		}
 		start_pos.y += pad.y + BUTTON_SIZE.y
 
