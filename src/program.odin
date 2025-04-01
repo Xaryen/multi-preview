@@ -198,79 +198,100 @@ update :: proc() {
 		BUTTON_SIZE :: [2]f32{350, 35}
 
 		// crappy adhoc autolayout
-		rect_pad  := [2]f32{15, 15}
-		start_pos := [2]f32{f32(rl.GetScreenWidth()) - BUTTON_SIZE.x - 2*rect_pad.x, 0}
-		pad_start := [2]f32{10, 10} 
-		pad  := [2]f32{0, 10}
-		start_pos += pad_start
-
-
-
-		rl.DrawRectangleRec({
-			start_pos.x - rect_pad.x,
-			start_pos.y - rect_pad.y,
+		scroll_width := f32(0)
+		rect_pad     := [2]f32{15, 15}
+		start_pos    := [2]f32{f32(rl.GetScreenWidth()) - BUTTON_SIZE.x - 2*rect_pad.x - scroll_width, 0}
+		pad          := [2]f32{0, 10} 
+		//pad_start : [2]f32 = 0
+		
+		controls_rect := rl.Rectangle{
+			start_pos.x,
+			start_pos.y,
 			BUTTON_SIZE.x + 2*rect_pad.x,
-			f32(rl.GetScreenHeight())},
+			f32(rl.GetScreenHeight())
+		}
+		
+		
+		//@static scroll_pos: rl.Vector2
+		//@static scroll_view: rl.Rectangle
+		
+		//rl.GuiScrollPanel(
+		//	rl.Rectangle({start_pos.x + BUTTON_SIZE.x + 2*rect_pad.x,
+		//		start_pos.y,
+		//		scroll_width,
+		//		f32(rl.GetScreenHeight())
+		//	}),
+		//	{},
+		//	controls_rect,
+		//	&scroll_pos,
+		//	&scroll_view
+		//)
+		
+		cursor := start_pos
+		cursor += rect_pad
+
+		rl.DrawRectangleRec(
+			controls_rect,
 			rl.BLACK,
 		)
 
 		//TITLE
-		rl.GuiLabelButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, TITLE_STR[g_lang])
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		rl.GuiLabelButton({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, TITLE_STR[g_lang])
+		cursor.y += pad.y + BUTTON_SIZE.y
 
 		if rl.GuiButton(
-			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			{cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
 			CHANGE_LANG_STR[g_lang],
 		) {
 			g_lang = .JP if g_lang == .ENG else .ENG
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
 		
 
 		//ADD BOX
-		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, ADD_BOX_STR[g_lang]) {
+		if rl.GuiButton({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, ADD_BOX_STR[g_lang]) {
 			
 			g_boxes.arr[g_boxes.num].time = 0 
 
 			g_boxes.num += 1
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
 
 		//REMOVE BOX
-		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, REM_BOX_STR[g_lang]) {
+		if rl.GuiButton({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, REM_BOX_STR[g_lang]) {
 			
 			g_boxes.arr[g_boxes.num] = Box{
 			}
 
 			g_boxes.num -= 1
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
 
 		
 		//BOX SIZE
-		rl.GuiLabel({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, BOX_SIZE_STR[g_lang])
-		start_pos.y += pad.y + BUTTON_SIZE.y
-		if rl.GuiSlider({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, {}, {}, &g_box_size, 0, 200) != 0 {
+		rl.GuiLabel({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, BOX_SIZE_STR[g_lang])
+		cursor.y += pad.y + BUTTON_SIZE.y
+		if rl.GuiSlider({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, {}, {}, &g_box_size, 0, 200) != 0 {
 			//never seems to get hit? it doesn't return 1 even when changing
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
 
 		for i in 0..<g_boxes.num {
 			box := &g_boxes.arr[i]
-			curr_box_rect := rl.Rectangle{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}
+			curr_box_rect := rl.Rectangle{cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}
 			if rl.CheckCollisionPointRec(rl.GetMousePosition(), curr_box_rect) && rl.IsMouseButtonDown(.LEFT) {
 				g_active_box = Active_Input_Box(8+i)
 			}
 			if rl.GuiTextBox(curr_box_rect, cstring(&g_boxes.bufs[i][0]), 36, g_active_box == Active_Input_Box(8+i)) {
 				box.velocity, _ = strconv.parse_f32(string(g_boxes.bufs[i][:]))
 			}
-			start_pos.y += pad.y + BUTTON_SIZE.y
+			cursor.y += pad.y + BUTTON_SIZE.y
 		}
 		
 		//DPI
-		rl.GuiLabel({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "DPI:")
-		start_pos.y += pad.y + BUTTON_SIZE.y
-		dpi_field_rect := rl.Rectangle{start_pos.x, start_pos.y,BUTTON_SIZE.x, BUTTON_SIZE.y}
+		rl.GuiLabel({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "DPI:")
+		cursor.y += pad.y + BUTTON_SIZE.y
+		dpi_field_rect := rl.Rectangle{cursor.x, cursor.y,BUTTON_SIZE.x, BUTTON_SIZE.y}
 		if rl.CheckCollisionPointRec(rl.GetMousePosition(), dpi_field_rect) && rl.IsMouseButtonDown(.LEFT) {
 			g_active_box = .Dpi
 		}
@@ -278,38 +299,57 @@ update :: proc() {
 			//run = false
 			g_dpi = f32(g_dpi_field)
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y + 100
+		cursor.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
 
 
-		rl.GuiLabel(
-			{start_pos.x, start_pos.y, BUTTON_SIZE.x, 100},
-			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
-			fmt.ctprintf("24fps: %.4f \n\n60fps: %.4f", g_24fps_time, time),
-		)
-		start_pos.y += pad.y + 100
-
-
-		rl.GuiLabel(
-			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
-			fmt.ctprintf("ZOOM: %.2f %%", g_zoom_mod*100)
-		)
-		start_pos.y += pad.y + BUTTON_SIZE.y
-		rl.GuiLabel(
-			{start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
-			"(LCTRL + MOUSEWHEEL)",
-		)
-		start_pos.y += pad.y + BUTTON_SIZE.y
-		start_pos.y += pad.y + BUTTON_SIZE.y
-
-		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, PAUSE_STR[g_lang]) {
+		if rl.GuiButton({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, PAUSE_STR[g_lang]) {
 			g_paused = !g_paused
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
 
-		if rl.GuiButton({start_pos.x, start_pos.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, RESET_STR[g_lang]) {
+		if rl.GuiButton({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, RESET_STR[g_lang]) {
 			g_boxes.arr.time = 0
 		}
-		start_pos.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
+
+
+
+		rl.GuiLabel(
+			{cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			fmt.ctprintf("ZOOM: %.2f %%", g_zoom_mod*100)
+		)
+		cursor.y += pad.y + BUTTON_SIZE.y
+		
+		rl.GuiLabel(
+			{cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			"(LCTRL + MOUSEWHEEL)",
+		)
+		cursor.y += pad.y + BUTTON_SIZE.y
+		cursor.y += pad.y + BUTTON_SIZE.y
+
+		rl.GuiLabel(
+			{cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
+			"Debug info:",
+		)
+		cursor.y += pad.y + BUTTON_SIZE.y
+
+		rl.GuiLabel(
+			{cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
+			fmt.ctprintf("24fps: %.4f", g_24fps_time),
+		)
+		cursor.y += pad.y + BUTTON_SIZE.y
+
+		rl.GuiLabel(
+			{cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y},
+			//fmt.ctprintf("%.2f", strconv.atof(string(g_textbuf[:])))
+			fmt.ctprintf("60fps: %.4f", time),
+		)
+		cursor.y += pad.y + BUTTON_SIZE.y
 
 	}
 
