@@ -15,6 +15,11 @@ A4               :: [2]f32{297, 210}
 A4_FRAME         :: [2]f32{260, 146.25}
 A4_ANCH_POS      :: [2]f32{A4.x/2, A4.y*11/20}
 
+MID_GRAY :: rl.Color{117, 117, 117, 255}
+DARK_GRAY :: rl.Color{85, 85, 85, 255}
+
+BUTTON_SIZE :: [2]f32{350, 35}
+
 g_font: rl.Font
 g_run: bool
 g_paused: bool
@@ -52,37 +57,47 @@ Language :: enum {
 
 ADD_BOX_STR := [Language]cstring{
 	.ENG = "Add Box",
-	.JP = "ボックス追加"
+	.JP = "ボックス追加",
 }
 
 REM_BOX_STR := [Language]cstring{
 	.ENG = "Remove Box",
-	.JP = "ボックス削除"
+	.JP = "ボックス削除",
 }
 
 CHANGE_LANG_STR := [Language]cstring{
 	.ENG = "日本語",
-	.JP = "English"
+	.JP = "English",
 }
 
 TITLE_STR := [Language]cstring{
 	.ENG = "Multiplane Previewer",
-	.JP = "密着マルチプレビューア"
+	.JP = "密着マルチプレビューア",
 }
 
 BOX_SIZE_STR := [Language]cstring{
 	.ENG = "Box Size:",
-	.JP = "ボックスサイズ"
+	.JP = "ボックスサイズ",
+}
+
+BOX_PLACEHOLDER_STR := [Language]cstring{
+	.ENG = "<Boxes will appear here>",
+	.JP = "<Boxes will appear here>",
+}
+
+BOX_SPEED_STR := [Language]cstring{
+	.ENG = "Speed (mm/k):",
+	.JP = "Speed (mm/k):",
 }
 
 PAUSE_STR := [Language]cstring{
 	.ENG = "PAUSE",
-	.JP = "一時停止"
+	.JP = "一時停止",
 }
 
 RESET_STR := [Language]cstring{
 	.ENG = "RESET",
-	.JP = "リセット"
+	.JP = "リセット",
 }
 
 Active_Input_Box :: enum {
@@ -132,6 +147,20 @@ update :: proc() {
 		next_24fps_frame = false
 	}
 
+	// crappy adhoc autolayout
+	scroll_width := f32(0)
+	rect_pad     := [2]f32{15, 15}
+	start_pos    := [2]f32{f32(rl.GetScreenWidth()) - BUTTON_SIZE.x - 2*rect_pad.x - scroll_width, 0}
+	pad          := [2]f32{0, 10} 
+	//pad_start : [2]f32 = 0
+	
+	controls_rect := rl.Rectangle{
+		start_pos.x,
+		start_pos.y,
+		BUTTON_SIZE.x + 2*rect_pad.x,
+		f32(rl.GetScreenHeight())
+	}
+
 	rl.BeginDrawing()
 	rl.ClearBackground({120, 120, 153, 255})
 
@@ -154,13 +183,13 @@ update :: proc() {
 		//w := rl.GetScreenWidth()
 		//h := rl.GetScreenHeight()
 
-		//TODO: Antialsing/texture filtering
+		//TODO: Antialiasing/texture filtering
 
-		start_pos := [2]f32{}
+		box_start_pos := [2]f32{}
 
-		start_pos = mm_to_px(30, g_real_dpi)
-		box_dim  := mm_to_px(g_box_size, g_real_dpi)
-		pad := box_dim + box_dim/5
+		box_start_pos  = mm_to_px(30, g_real_dpi)
+		box_dim       := mm_to_px(g_box_size, g_real_dpi)
+		pad           := box_dim + box_dim/5
 
 		for i in 0..<g_boxes.num {
 			box := &g_boxes.arr[i]
@@ -169,48 +198,25 @@ update :: proc() {
 				box.time += 1
 			}
 
-			pos_x := mm_to_px(box.velocity * box.time, g_real_dpi) + start_pos.x
+			pos_x := mm_to_px(box.velocity * box.time, g_real_dpi) + box_start_pos.x
 		
 			rl.DrawRectangleV(
-				{pos_x,  start_pos.y},
+				{pos_x,  box_start_pos.y},
 				{box_dim, box_dim},
 				{35, 35, 35, 255},
 			)
 
+			box_start_pos.y += pad
 
-
-			start_pos.y += pad
-
-			if pos_x > f32(rl.GetScreenWidth()) {
+			if pos_x > (f32(rl.GetScreenWidth()) - controls_rect.width) {
 				box.time = 0
 			}
-
 		}
-
-		
-
 	}
 
 
 	//GUI
 	{
-
-		BUTTON_SIZE :: [2]f32{350, 35}
-
-		// crappy adhoc autolayout
-		scroll_width := f32(0)
-		rect_pad     := [2]f32{15, 15}
-		start_pos    := [2]f32{f32(rl.GetScreenWidth()) - BUTTON_SIZE.x - 2*rect_pad.x - scroll_width, 0}
-		pad          := [2]f32{0, 10} 
-		//pad_start : [2]f32 = 0
-		
-		controls_rect := rl.Rectangle{
-			start_pos.x,
-			start_pos.y,
-			BUTTON_SIZE.x + 2*rect_pad.x,
-			f32(rl.GetScreenHeight())
-		}
-		
 		
 		//@static scroll_pos: rl.Vector2
 		//@static scroll_view: rl.Rectangle
@@ -252,6 +258,9 @@ update :: proc() {
 		if rl.GuiButton({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, ADD_BOX_STR[g_lang]) {
 			
 			g_boxes.arr[g_boxes.num].time = 0 
+			if g_boxes.bufs[g_boxes.num] == 0 {
+				copy(g_boxes.bufs[g_boxes.num][:], "0")
+			}
 
 			g_boxes.num += 1
 		}
@@ -260,8 +269,7 @@ update :: proc() {
 		//REMOVE BOX
 		if rl.GuiButton({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, REM_BOX_STR[g_lang]) {
 			
-			g_boxes.arr[g_boxes.num] = Box{
-			}
+			g_boxes.arr[g_boxes.num].time = 0
 
 			g_boxes.num -= 1
 		}
@@ -275,6 +283,15 @@ update :: proc() {
 			//never seems to get hit? it doesn't return 1 even when changing
 		}
 		cursor.y += pad.y + BUTTON_SIZE.y
+		
+		// BOX SPEED
+		rl.GuiLabel({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, BOX_SPEED_STR[g_lang])
+		cursor.y += pad.y + BUTTON_SIZE.y
+
+		if g_boxes.num == 0 {
+			rl.GuiLabel({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, BOX_PLACEHOLDER_STR[g_lang])
+			cursor.y += pad.y + BUTTON_SIZE.y
+		}
 
 		for i in 0..<g_boxes.num {
 			box := &g_boxes.arr[i]
@@ -288,13 +305,17 @@ update :: proc() {
 			cursor.y += pad.y + BUTTON_SIZE.y
 		}
 		
+		
 		//DPI
 		rl.GuiLabel({cursor.x, cursor.y, BUTTON_SIZE.x, BUTTON_SIZE.y}, "DPI:")
 		cursor.y += pad.y + BUTTON_SIZE.y
+
+
 		dpi_field_rect := rl.Rectangle{cursor.x, cursor.y,BUTTON_SIZE.x, BUTTON_SIZE.y}
 		if rl.CheckCollisionPointRec(rl.GetMousePosition(), dpi_field_rect) && rl.IsMouseButtonDown(.LEFT) {
 			g_active_box = .Dpi
 		}
+
 		if rl.GuiValueBox(dpi_field_rect, {},  &g_dpi_field, 1, 1000, g_active_box == .Dpi) != 0 {
 			//run = false
 			g_dpi = f32(g_dpi_field)
