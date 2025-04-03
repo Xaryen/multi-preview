@@ -57,47 +57,47 @@ Language :: enum {
 
 ADD_BOX_STR := [Language]cstring{
 	.ENG = "Add Box",
-	.JP = "ボックス追加",
+	.JP  = "ボックス追加",
 }
 
 REM_BOX_STR := [Language]cstring{
 	.ENG = "Remove Box",
-	.JP = "ボックス削除",
+	.JP  = "ボックス削除",
 }
 
 CHANGE_LANG_STR := [Language]cstring{
 	.ENG = "日本語",
-	.JP = "English",
+	.JP  = "English",
 }
 
 TITLE_STR := [Language]cstring{
 	.ENG = "Multiplane Previewer",
-	.JP = "密着マルチプレビューア",
+	.JP  = "密着マルチプレビューア",
 }
 
 BOX_SIZE_STR := [Language]cstring{
 	.ENG = "Box Size:",
-	.JP = "ボックスサイズ",
+	.JP  = "ボックスサイズ",
 }
 
 BOX_PLACEHOLDER_STR := [Language]cstring{
 	.ENG = "<Boxes will appear here>",
-	.JP = "<Boxes will appear here>",
+	.JP  = "<Boxes will appear here>",
 }
 
 BOX_SPEED_STR := [Language]cstring{
 	.ENG = "Speed (mm/k):",
-	.JP = "Speed (mm/k):",
+	.JP  = "Speed (mm/k):",
 }
 
 PAUSE_STR := [Language]cstring{
 	.ENG = "PAUSE",
-	.JP = "一時停止",
+	.JP  = "一時停止",
 }
 
 RESET_STR := [Language]cstring{
 	.ENG = "RESET",
-	.JP = "リセット",
+	.JP  = "リセット",
 }
 
 Active_Input_Box :: enum {
