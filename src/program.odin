@@ -33,6 +33,7 @@ g_dpi_field := i32(g_dpi)
 g_boxes := Boxes{}
 g_box_size := px_to_mm(DEFAULT_BOX_SIZE, g_real_dpi)
 
+g_time_accumulate: f64
 g_24fps_time := f64(0)
 FRAMETIME_24FPS :: f64(1.0/24)
 
@@ -136,11 +137,13 @@ update :: proc() {
 	time := rl.GetTime()
 	next_24fps_frame := false
 
-	log.debug(FRAMETIME_24FPS)
+	g_time_accumulate += f64(rl.GetFrameTime())
 
-	if time > (g_24fps_time + FRAMETIME_24FPS) {
-		g_24fps_time = time
+	if (g_time_accumulate >= FRAMETIME_24FPS) {
 		next_24fps_frame = true
+		g_time_accumulate -= FRAMETIME_24FPS
+	} else {
+		next_24fps_frame = false
 	}
 
 	if g_paused {
